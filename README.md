@@ -126,3 +126,4 @@ We would like to thank the USMARC swine crew for their efforts in collecting the
 
 Mention of trade names or commercial products in this publication is solely for the purpose of providing specific information and does not imply recommendation or endorsement by the USDA. The USDA prohibits discrimination in all its programs and activities on the basis of race, color, national origin, age, disability, and where applicable, sex, marital status, familial status, parental status, religion, sexual orientation, genetic information, political beliefs, reprisal, or because all or part of an individual’s income is derived from any public assistance program (Not all prohibited bases apply to all programs). USDA is an equal-opportunity employer.
 
+![Copy of MAI_POSTER](https://github.com/user-attachments/assets/ea72e341-6949-4dd1-9994-367f37de3e98)
