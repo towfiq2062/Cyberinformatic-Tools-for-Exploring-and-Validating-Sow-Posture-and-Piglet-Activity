@@ -1,0 +1,94 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Aug 19 13:17:12 2024
+
+@author: mrahman8
+"""
+
+#This code Makes prediction from DS folders to a csv file. 
+
+
+import os
+import cv2
+import numpy as np
+import csv
+from ultralytics import YOLO
+import glob
+
+def process_txt_files(src_directory, out_root_directory, model_path, yolo_output_dir, csv_output_dir):
+    # Initialize the YOLO model
+    model = YOLO(model_path)
+
+    # Walk through all subdirectories and files in the source directory
+    for root, _, files in os.walk(src_directory):
+        txt_files = [f for f in files if f.endswith('.txt')]
+        
+        if not txt_files:
+            continue  # Skip folders without TXT files
+
+        relative_subdir = os.path.relpath(root, src_directory)
+        output_subdir = os.path.join(out_root_directory, relative_subdir)
+        os.makedirs(output_subdir, exist_ok=True)
+
+        # Process each TXT file
+        for filename in txt_files:
+            depth_data = np.loadtxt(os.path.join(root, filename), delimiter=',')
+            depth_data[np.logical_or(depth_data < 1500, depth_data > 2700)] = 0
+            depth_normalized = 1 - np.clip((depth_data - 1500) / (2700 - 1500), 0, 1)
+            colorized_depth = cv2.applyColorMap((depth_normalized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+            img_cropped = colorized_depth[50:450, 70:500]
+            filename_out = os.path.splitext(filename)[0] + '.png'
+            output_file_path = os.path.join(output_subdir, filename_out)
+            cv2.imwrite(output_file_path, img_cropped)
+            print(f"Processed {filename_out}")
+
+        # Create a specific output directory for YOLO predictions
+        yolo_output_subdir = os.path.join(yolo_output_dir, relative_subdir)
+        os.makedirs(yolo_output_subdir, exist_ok=True)
+
+        # Perform predictions using YOLO, specifying the output directory
+        model.predict(source=output_subdir, rect=True, save_txt=True, save=False, project=yolo_output_subdir)
+
+        # Locate the predict/labels directory
+        labels_dir = os.path.join(yolo_output_subdir, "predict", "labels")
+        print(f"Predictions saved to {labels_dir}")
+
+        # Generate CSV file for the current directory
+        generate_csv_for_folder(labels_dir, csv_output_dir, relative_subdir)
+
+def generate_csv_for_folder(labels_dir, csv_output_dir, folder_name):
+    csv_filename = folder_name.replace(os.sep, '_') + '.csv'
+    output_path = os.path.join(csv_output_dir, csv_filename)
+    
+    data = []
+    for filename in os.listdir(labels_dir):
+        if filename.endswith('.txt'):
+            file_path = os.path.join(labels_dir, filename)
+            with open(file_path, 'r') as file:
+                first_line = file.readline()
+                prediction = extract_prediction(first_line)
+                if prediction is not None:
+                    data.append({'filename': os.path.splitext(filename)[0], 'predict': prediction})
+    
+    os.makedirs(csv_output_dir, exist_ok=True)
+    with open(output_path, 'w', newline='') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=['filename', 'predict'])
+        writer.writeheader()
+        writer.writerows(data)
+    
+    print(f"CSV file created at: {output_path}")
+
+def extract_prediction(line):
+    parts = line.strip().split(' ', 1)
+    return parts[1] if len(parts) == 2 else None
+
+
+if __name__ == "__main__":
+    # Define paths
+    src_directory = r"I:\My Drive\0. UNL STUDY\0. Research\0.Current_work\automate\DS_demo"  # Update this path
+    out_root_directory = r"I:\My Drive\0. UNL STUDY\0. Research\0.Current_work\automate\Out\image_out"  # Update this path
+    model_path = r"I:\My Drive\0. UNL STUDY\0. Research\0.Current_work\automate\Model\train3\weights\best.pt"
+    yolo_output_dir = r"I:\My Drive\0. UNL STUDY\0. Research\0.Current_work\automate\Out\yolo_out"
+    csv_output_dir = r"I:\My Drive\0. UNL STUDY\0. Research\0.Current_work\automate\Out\csv_out"
+    
+    process_txt_files(src_directory, out_root_directory, model_path, yolo_output_dir, csv_output_dir)
